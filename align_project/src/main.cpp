@@ -4,6 +4,7 @@
 #include <fstream>
 #include <initializer_list>
 #include <limits>
+#include <vector>
 
 using std::string;
 using std::stringstream;
@@ -125,8 +126,42 @@ void check_argc(int argc, int from, int to=numeric_limits<int>::max())
 
 Matrix<double> parse_kernel(string kernel)
 {
-    // Kernel parsing implementation here
-    return Matrix<double>(0, 0);
+    if (kernel.length() < 1)
+        throw string("error kernel string");
+
+    std::istringstream rows(kernel);
+    std::vector<string> numbers; 
+    string row;
+    uint n_rows = 0;
+    uint n_cols = 0;
+
+    while (getline(rows, row, ';')) {
+        n_rows++;
+        std::istringstream cols(row);
+        string col;
+        size_t n_cols2 = 0;
+
+        while (getline(cols, col, ',')) {
+            numbers.push_back(col);
+            n_cols2++;
+        }
+
+        if (n_cols == 0) {
+            n_cols = n_cols2;
+        }
+        else if (n_cols != n_cols2) {
+            throw string("error kernel string");
+        }
+    }
+
+    Matrix<double> kernel_matrix(n_rows, n_cols);
+
+    for (uint i = 0; i < n_rows; i++)
+        for (uint j = 0; j < n_cols; j++)
+            if (!sscanf(numbers[i * n_rows + j].c_str(), "%lf", &kernel_matrix(i, j)))
+                throw string("error kernel string");
+
+    return kernel_matrix;
 }
 
 void parse_args(char **argv, int argc, bool *isPostprocessing, string *postprocessingType, double *fraction, bool *isMirror, 
@@ -186,6 +221,11 @@ int main(int argc, char **argv)
             check_argc(argc, 5, 5);
             double scale = read_value<double>(argv[4]);
             dst_image = resize(src_image, scale);
+        } else if (action == "--resize-bicubic") {
+            check_argc(argc, 5, 5);
+
+            double scale = read_value<double>(argv[4]);
+            dst_image = resizeBicubic(src_image, scale);
         }  else if (action == "--custom") {
             check_argc(argc, 5, 5);
             Matrix<double> kernel = parse_kernel(argv[4]);
